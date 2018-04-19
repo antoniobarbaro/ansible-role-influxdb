@@ -1,0 +1,6 @@
+influxdb_version: '1.5.2'
+influxdb_admin_user: 'admin'
+influxdb_admin_user_password: 'changeme'
+influxdb_app_user: 'test1'
+influxdb_app_user_password: 'changeme'
+influxdb_app_database: 'test1'

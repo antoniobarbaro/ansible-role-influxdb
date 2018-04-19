@@ -1,0 +1,91 @@
+---
+# tasks file for influxdb
+- name: Install influxdb repository
+  yum_repository:
+    name: influxdb
+    description: influxdb repository
+    baseurl: https://repos.influxdata.com/rhel/\$releasever/\$basearch/stable
+    gpgkey: https://repos.influxdata.com/influxdb.key
+    gpgcheck: yes
+
+- name: install influxdb
+  yum:
+    name: 'influxdb-{{ influxdb_version }}'
+    state: present
+    update_cache: yes
+
+- name: enable and start influxdb service
+  systemd:
+    name: influxdb
+    state: started
+    enabled: yes
+
+
+- name: create administrator user
+  command: influx -username {{ influxdb_admin_user }} -password  '{{ influxdb_admin_user_password }}' -execute "CREATE USER {{ influxdb_admin_user }} WITH PASSWORD '{{ influxdb_admin_user_password }}' WITH ALL PRIVILEGES"
+  register: out
+
+- debug:
+    msg: "create application user output: {{ out.stdout }}"  
+
+- name: create application user
+  command: influx -username {{ influxdb_admin_user }} -password  '{{ influxdb_admin_user_password }}' -execute "CREATE USER {{ influxdb_app_user }} WITH PASSWORD '{{ influxdb_app_user_password }}'"
+  register: out
+
+- debug:
+    msg: "create application user output: {{ out }}"  
+
+- name: create application database
+  command: influx -username {{ influxdb_admin_user }} -password  '{{ influxdb_admin_user_password }}' -execute "CREATE DATABASE {{ influxdb_app_database }}"
+  register: out
+
+- debug:
+    msg: "create database output: {{ out }}"      
+
+
+- name: grant privileges application database
+  command: influx -username {{ influxdb_admin_user }} -password  '{{ influxdb_admin_user_password }}' -execute "GRANT ALL ON {{ influxdb_app_database }} TO {{ influxdb_app_user }} "
+  register: out
+
+- debug:
+    msg: "create database output: {{ out }}"      
+
+- name: enable http endpoint
+  ini_file:
+    path: /etc/influxdb/influxdb.conf
+    section: http
+    option: enabled
+    value: 'true'
+    backup: yes
+  notify:
+  - restart influxdb
+
+- name: bind address used by the HTTP service
+  ini_file:
+    path: /etc/influxdb/influxdb.conf
+    section: http
+    option: bind-address
+    value: '":8086"'
+    backup: yes    
+  notify:
+  - restart influxdb
+
+- name: enable authentication is enabled over HTTP/HTTPS
+  ini_file:
+    path: /etc/influxdb/influxdb.conf
+    section: http
+    option: auth-enabled
+    value: 'true'
+    backup: yes    
+  notify:
+  - restart influxdb
+
+- name: enable HTTP request logging 
+  ini_file:
+    path: /etc/influxdb/influxdb.conf
+    section: http
+    option: log-enabled
+    value: 'true'
+    backup: yes    
+  notify:
+  - restart influxdb
